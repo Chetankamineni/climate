@@ -1,3 +1,5 @@
+// src/pages/weather-dashboard.tsx
+
 import {
   useForecastQuery,
   useReverseGeocodeQuery,
@@ -13,6 +15,10 @@ import { WeatherForecast } from "../components/weather-forecast";
 import { HourlyTemperature } from "../components/hourly-temperature";
 import WeatherSkeleton from "../components/loading-skeleton";
 import { FavoriteCities } from "../components/favorite-cities";
+import { AirQualityCard } from "../components/air-quality-card";
+import { useQuery } from "@tanstack/react-query";
+import { weatherAPI } from "@/api/weather";
+
 
 export function WeatherDashboard() {
   const {
@@ -26,17 +32,24 @@ export function WeatherDashboard() {
   const forecastQuery = useForecastQuery(coordinates);
   const locationQuery = useReverseGeocodeQuery(coordinates);
 
-  // Function to refresh all data
+  const aqiQuery = useQuery({
+      queryKey: ["air-pollution", coordinates],
+      queryFn: () => (coordinates ? weatherAPI.getAirPollution(coordinates) : null),
+      enabled: !!coordinates,
+      staleTime: 5 * 60 * 1000,
+  });
+
   const handleRefresh = () => {
     getLocation();
     if (coordinates) {
       weatherQuery.refetch();
       forecastQuery.refetch();
       locationQuery.refetch();
+      aqiQuery.refetch();
     }
   };
 
-  if (locationLoading) {
+  if (locationLoading || aqiQuery.isLoading) {
     return <WeatherSkeleton />;
   }
 
@@ -74,7 +87,7 @@ export function WeatherDashboard() {
 
   const locationName = locationQuery.data?.[0];
 
-  if (weatherQuery.error || forecastQuery.error) {
+  if (weatherQuery.error || forecastQuery.error || aqiQuery.error) {
     return (
       <Alert variant="destructive">
         <AlertTriangle className="h-4 w-4" />
@@ -90,7 +103,7 @@ export function WeatherDashboard() {
     );
   }
 
-  if (!weatherQuery.data || !forecastQuery.data) {
+  if (!weatherQuery.data || !forecastQuery.data || !aqiQuery.data) {
     return <WeatherSkeleton />;
   }
 
@@ -103,10 +116,10 @@ export function WeatherDashboard() {
           variant="outline"
           size="icon"
           onClick={handleRefresh}
-          disabled={weatherQuery.isFetching || forecastQuery.isFetching}
+          disabled={weatherQuery.isFetching || forecastQuery.isFetching || aqiQuery.isFetching}
         >
           <RefreshCw
-            className={`h-4 w-4 ${weatherQuery.isFetching ? "animate-spin" : ""
+            className={`h-4 w-4 ${weatherQuery.isFetching || aqiQuery.isFetching ? "animate-spin" : ""
               }`}
           />
         </Button>
@@ -121,8 +134,15 @@ export function WeatherDashboard() {
           <HourlyTemperature data={forecastQuery.data} />
         </div>
 
+        {/* New main container for side-by-side layout */}
         <div className="grid gap-6 md:grid-cols-2 items-start">
-          <WeatherDetails data={weatherQuery.data} />
+          {/* Left Container: Weather Details & AQI Card, stacked vertically */}
+          <div className="grid gap-6"> {/* This inner grid stacks them */}
+            <WeatherDetails data={weatherQuery.data} />
+            <AirQualityCard data={aqiQuery.data} />
+          </div>
+
+          {/* Right Container: 5-Day Forecast */}
           <WeatherForecast data={forecastQuery.data} />
         </div>
       </div>

@@ -1,3 +1,5 @@
+// src/pages/city-page.tsx
+
 import { useParams, useSearchParams } from "react-router-dom";
 import { useWeatherQuery, useForecastQuery } from "@/hooks/use-weather";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -8,6 +10,9 @@ import { WeatherDetails } from "../components/weather-details";
 import { WeatherForecast } from "../components/weather-forecast";
 import WeatherSkeleton from "../components/loading-skeleton";
 import { FavoriteButton } from "../components/favorite-button";
+import { AirQualityCard } from "../components/air-quality-card";
+import { useQuery } from "@tanstack/react-query";
+import { weatherAPI } from "@/api/weather";
 
 export function CityPage() {
   const [searchParams] = useSearchParams();
@@ -19,8 +24,14 @@ export function CityPage() {
 
   const weatherQuery = useWeatherQuery(coordinates);
   const forecastQuery = useForecastQuery(coordinates);
+  const aqiQuery = useQuery({
+      queryKey: ["air-pollution", coordinates],
+      queryFn: () => (coordinates ? weatherAPI.getAirPollution(coordinates) : null),
+      enabled: !!coordinates,
+      staleTime: 5 * 60 * 1000,
+  });
 
-  if (weatherQuery.error || forecastQuery.error) {
+  if (weatherQuery.error || forecastQuery.error || aqiQuery.error) {
     return (
       <Alert variant="destructive">
         <AlertTriangle className="h-4 w-4" />
@@ -31,7 +42,7 @@ export function CityPage() {
     );
   }
 
-  if (!weatherQuery.data || !forecastQuery.data || !params.cityName) {
+  if (!weatherQuery.data || !forecastQuery.data || !aqiQuery.data || !params.cityName) {
     return <WeatherSkeleton />;
   }
 
@@ -51,8 +62,16 @@ export function CityPage() {
       <div className="grid gap-6">
         <CurrentWeather data={weatherQuery.data} />
         <HourlyTemperature data={forecastQuery.data} />
+
+        {/* New main container for side-by-side layout */}
         <div className="grid gap-6 md:grid-cols-2 items-start">
-          <WeatherDetails data={weatherQuery.data} />
+          {/* Left Container: Weather Details & AQI Card, stacked vertically */}
+          <div className="grid gap-6">
+            <WeatherDetails data={weatherQuery.data} />
+            <AirQualityCard data={aqiQuery.data} />
+          </div>
+
+          {/* Right Container: 5-Day Forecast */}
           <WeatherForecast data={forecastQuery.data} />
         </div>
       </div>

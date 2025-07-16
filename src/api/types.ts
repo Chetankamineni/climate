@@ -58,3 +58,23 @@ export interface GeocodingResponse {
     country: string;
     state?: string;
 }
+
+export interface AirPollutionData {
+    coord: Coordinates;
+    list: Array<{
+        dt: number;
+        main: {
+            aqi: number; // Air Quality Index
+        };
+        components: {
+            co: number; // Carbon monoxide
+            no: number; // Nitrogen monoxide
+            no2: number; // Nitrogen dioxide
+            o3: number; // Ozone
+            so2: number; // Sulphur dioxide
+            pm2_5: number; // Fine particles matter
+            pm10: number; // Coarse particulate matter
+            nh3: number; // Ammonia
+        };
+    }>;
+}
